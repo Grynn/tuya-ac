@@ -105,7 +105,6 @@ Protocol references: [IRremoteESP8266 Daikin implementation](https://github.com/
 git clone https://github.com/Grynn/tuya-ac.git
 cd tuya-ac
 uv sync --frozen
-uv run python -m unittest discover -s tests -v
 ./ac --help
 ```
 
