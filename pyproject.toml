@@ -1,0 +1,9 @@
+[project]
+name = "tuya-ac"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "qrcode[pil]>=8.2",
+    "tinytuya>=1.20.0",
+    "tuya-device-sharing-sdk>=0.2.15",
+]

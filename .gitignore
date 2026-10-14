@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env*
+config.json
+inventory.json
+ir-codes.json
+devices.json
+tinytuya.json
+tuya-raw.json
+*qr*.png
