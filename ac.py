@@ -123,9 +123,9 @@ def learn(name, seconds):
 def send(name, dry_run=False):
     codes = load_codes()
     if name not in codes and 'capture-a' in codes and (name in ('on', 'off') or name.startswith('cool-')):
-        temperature = int(name[5:]) if name.startswith('cool-') else 24
+        temperature = int(name[5:]) if name.startswith('cool-') else 28
         template = validate_code(codes['capture-a']['base64'])
-        codes[name] = {'base64': daikin.encode(template, temperature, power=name != 'off')}
+        codes[name] = {'base64': daikin.encode(template, temperature, power=name != 'off', fan_auto=name == 'on')}
     if name not in codes:
         raise ValueError(f'No verified code for {name}. Capture it first: ./ac learn {name}')
     code = codes[name]['base64']
@@ -145,7 +145,7 @@ def send(name, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--version', action='version', version='%(prog)s 0.1.0')
+    parser.add_argument('--version', action='version', version='%(prog)s 0.1.1')
     sub = parser.add_subparsers(dest='action', required=True)
     for name in ('on', 'off'):
         sub.add_parser(name).add_argument('--dry-run', action='store_true')
@@ -187,7 +187,7 @@ def main():
         learn(args.name, args.seconds)
     elif args.action == 'list':
         print(json.dumps({'captures': list(load_codes()),
-                          'generated': ['on (cooling 24C)', 'off', 'temp 16..30']}, indent=2))
+                          'generated': ['on (cooling 28C, auto fan)', 'off', 'temp 16..30']}, indent=2))
     else:
         name = f'cool-{args.temperature}' if args.action == 'temp' else args.action
         send(name, args.dry_run)

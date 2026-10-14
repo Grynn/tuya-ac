@@ -4,7 +4,7 @@ Control a Daikin200 air conditioner over the LAN through a compatible Tuya/Smart
 
 ```sh
 brew install grynn/tap/tuya-ac
-ac on          # cooling at 24°C
+ac on          # cooling at 28°C, auto fan
 ac temp 28     # cooling/on at 28°C
 ac off
 ```
@@ -15,7 +15,7 @@ Set up the hub and key first using the instructions below. The formula is named 
 
 Tested with one Tuya 3.5 Wi-Fi IR hub using DPS 201/202 and a Daikin200 remote. This is **not a universal AC driver**. Other Daikin variants, other AC brands, RF remotes, and hubs with different data points may not work.
 
-The bundled Daikin200 template uses unit address `0x48`, high fan and no swing. Temperature commands switch cooling on and accept 16–30°C. `on` always chooses 24°C; it does not restore a remembered temperature. These are full-state commands, not toggle commands. A different remote's settings/address require a matching learned template.
+The bundled Daikin200 template uses unit address `0x48`, high fan and no swing. Temperature commands switch cooling on, retain the template fan setting, and accept 16–30°C. `on` always chooses 28°C with auto fan; it does not restore a remembered temperature. These are full-state commands, not toggle commands. A different remote's settings/address require a matching learned template.
 
 The hub authenticated and acknowledged commands; original-capture replay and generated 24°C produced an AC beep confirmed by the operator. Off is encoded and tested offline, but has not yet been physically confirmed. There is no AC state/setpoint readback: an ACK means the hub accepted the command, not that the AC received it. The handheld remote's display does not update when this CLI sends IR.
 

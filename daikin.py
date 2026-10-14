@@ -25,7 +25,7 @@ def decode(pulses):
     return frame
 
 
-def encode(template, temperature, power=True):
+def encode(template, temperature, power=True, fan_auto=False):
     if not 16 <= temperature <= 30:
         raise ValueError('Temperature must be 16–30°C')
     frame = decode(template)
@@ -34,6 +34,8 @@ def encode(template, temperature, power=True):
     frame[13] = 0  # Normal operation, rather than a mode-button event.
     frame[14] = (frame[14] & 0xFE) | int(power)
     frame[17] = (frame[17] & 0x81) | ((temperature - 9) << 1)
+    if fan_auto:
+        frame[18] = (frame[18] & 0x0F) | 0xA0
     if not power:
         frame[18] &= 0x0F
     frame[24] = sum(frame[7:24]) & 255
