@@ -4,12 +4,13 @@ Control a Daikin200 air conditioner over the LAN through a compatible Tuya/Smart
 
 ```sh
 brew install grynn/tap/tuya-ac
+ac setup       # discovery, guided login if needed, safe connectivity check
 ac on          # cooling at 28°C, auto fan
 ac temp 28     # cooling/on at 28°C
 ac off
 ```
 
-Set up the hub and key first using the instructions below. The formula is named `tuya-ac`; the installed command is `ac`. This is an unofficial project, not affiliated with Tuya or Home Assistant.
+Pair the hub in Smart Life, then run `ac setup` as described below. The formula is named `tuya-ac`; the installed command is `ac`. This is an unofficial project, not affiliated with Tuya or Home Assistant.
 
 ## Supported hardware and behavior
 
@@ -26,17 +27,34 @@ The hub authenticated and acknowledged commands; original-capture replay and gen
 3. Put your Mac on the same LAN as the hub; guest-network/client isolation must not block communication.
 4. In Smart Life, open **Me → Settings → Account and Security → User Code**. This is your account's User Code, not the device's Virtual ID and not a local key. Menu labels can vary with app version.
 
-## 2. Retrieve local keys using Smart Life QR login
+## 2. Run setup
 
 ```sh
-ac login
+ac setup
 ```
 
-Enter the User Code when prompted. A QR image opens on your Mac. In **Smart Life → Home → + → Scan**, scan that QR and approve authorization. The image is temporary and removed when login finishes or expires (four-minute timeout).
+Setup reuses your existing configuration and Keychain key when the hub authenticates. Otherwise it discovers devices on your LAN (about 12 seconds), identifies physical IR hubs using the saved Smart Life inventory (category `wnykq`), and selects the only candidate or asks you to choose from numbered names, IDs and addresses. Virtual AC remotes and unrelated Tuya devices are not automatically selected. If the saved hub's IP changed, setup looks for that same device ID rather than switching to another hub.
 
-The command uses Tuya's sharing SDK with the public Home Assistant client registration. It lists device names/IDs and whether a local key was saved. Local keys go directly to **macOS Keychain**, under server `tuya-local-device`, account equal to the physical device ID. Keys and cloud tokens are not printed. Cloud tokens are not persisted. Device metadata is saved locally in `~/.config/tuya-ac/inventory.json`.
+When inventory or a local key is missing, setup asks before opening **Smart Life QR login**. Enter your account's User Code, scan the QR in **Smart Life → Home → + → Scan**, and review and approve the requested authorization. No developer project or API subscription is created. The QR image is temporary and removed when login finishes or expires (four-minute timeout). You can decline, press Ctrl-C, or close input to stop and rerun setup later.
 
-Choose the **physical Wi-Fi IR hub** (often named Smart IR, category `wnykq`), not the virtual AC remote. The virtual remote does not provide the hub's LAN connection. QR login requires internet access; normal on/off/temperature control does not need the cloud API or a developer subscription. Tuya can change or restrict this sharing endpoint; if no local key is returned, use the alternative below.
+The login uses Tuya's sharing SDK with the public Home Assistant client registration. Returned device keys are saved directly in **macOS Keychain**, under server `tuya-local-device`, account equal to the physical device ID. Keys and cloud tokens are not printed; cloud tokens are not persisted. Device metadata is saved in `~/.config/tuya-ac/inventory.json`. Keychain may ask you to allow access. A cancelled or failed setup can leave keys from a completed login in Keychain, but does not replace the hub configuration before successful validation.
+
+Setup finishes by authenticating to the selected hub and closing the connection, **without sending IR or entering learning mode**. Only after that succeeds does it save the configuration. Success checks hub connectivity, not the AC's response or IR compatibility. The current CLI requires Tuya protocol **3.5**.
+
+If no devices are found, check hub power, the Mac's LAN, and guest-network/client isolation. If a configured hub is absent, setup stops rather than picking a different one. For a hub that does not broadcast, use the manual commands below with the LAN address from your router's DHCP leases. Smart Life's public IP is not the LAN address. A DHCP reservation helps keep the hub's address stable.
+
+If a hub was reset or re-paired, its local key may have changed. Setup does not repeatedly request login after an authentication failure: run `ac login` or `ac key` to refresh the key, then rerun `ac setup`. A malformed configuration is preserved; repair it or explicitly select the replacement hub by ID.
+
+For scripts or an explicit choice:
+
+```sh
+ac setup --non-interactive
+ac setup --non-interactive --device-id YOUR_PHYSICAL_HUB_ID
+```
+
+Noninteractive setup (also automatic when input/output is not a terminal) never asks terminal questions or starts login. macOS can still require Keychain permission; allow access interactively before running unattended. It can reuse an authenticated setup, refresh the same hub's discovered IP, or select a single known IR hub with a saved key. Missing authorization, ambiguous selection, unsupported protocols, and failed validation return a nonzero exit status without replacing configuration. `--device-id` selects a discovered physical hub explicitly, including hubs whose category is not recognized; it never supplies an IP or key and does not bypass authentication.
+
+QR login requires internet access; normal control and setup with saved keys/inventory use the LAN. Tuya may change or restrict the sharing endpoint. If no local key is returned, use the alternative below.
 
 References: [Home Assistant's Tuya account/QR instructions](https://www.home-assistant.io/integrations/tuya/), [Tuya sharing SDK](https://github.com/tuya/tuya-device-sharing-sdk).
 
@@ -54,9 +72,12 @@ uv run --with tinytuya python -m tinytuya wizard
 
 Supply the project's API Access ID, Access Secret, region and a linked device ID when prompted. The wizard writes `devices.json` containing device local keys and may write API credentials in other JSON files. These files are secrets: do not commit or share them. Find the physical hub's key, configure its ID/IP as below, then run `ac key` and paste the key at the hidden prompt. Securely manage or remove the wizard files afterward. Developer API permissions and IoT Core subscriptions can expire; this route is not guaranteed to remain free or available.
 
-## 3. Find and configure the hub
+## 3. Manual setup (advanced)
+
+These commands remain available for troubleshooting and manual configuration:
 
 ```sh
+ac login  # optional: retrieve/refresh keys and inventory
 ac scan
 ac configure --device-id YOUR_PHYSICAL_HUB_ID --ip 192.168.1.123
 ac check
@@ -106,7 +127,10 @@ git clone https://github.com/Grynn/tuya-ac.git
 cd tuya-ac
 uv sync --frozen
 ./ac --help
+uv run --frozen python -m unittest discover -s tests -v
 ```
+
+Tests use temporary configuration directories and mock discovery, network transport, QR login, and Keychain access. They do not access the live hub or send IR. Do not run setup/control commands against your real configuration as part of development testing.
 
 Homebrew formula: [Grynn/homebrew-tap](https://github.com/Grynn/homebrew-tap/blob/main/tuya-ac.rb). Dependencies are pinned in `uv.lock`.
 

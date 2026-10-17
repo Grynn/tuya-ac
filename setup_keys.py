@@ -78,4 +78,4 @@ def login(config_dir):
         config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         (config_dir / 'inventory.json').write_text(json.dumps(inventory, indent=2) + '\n')
         print(json.dumps(inventory, indent=2))
-        print('Choose the physical Wi-Fi IR hub ID (not the virtual AC). Run ac scan, then ac configure.')
+        print('Local keys retrieved. Run ac setup to discover and validate your physical IR hub.')
