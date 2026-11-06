@@ -8,6 +8,7 @@ ac setup       # discovery, guided login if needed, safe connectivity check
 ac on          # cooling at 28°C, auto fan
 ac temp 28     # cooling/on at 28°C
 ac off
+ac upgrade     # brew upgrade, or git pull + uv sync in a source checkout
 ```
 
 Pair the hub in Smart Life, then run `ac setup` as described below. The formula is named `tuya-ac`; the installed command is `ac`. This is an unofficial project, not affiliated with Tuya or Home Assistant.
@@ -41,7 +42,7 @@ The login uses Tuya's sharing SDK with the public Home Assistant client registra
 
 Setup finishes by authenticating to the selected hub and closing the connection, **without sending IR or entering learning mode**. Only after that succeeds does it save the configuration. Success checks hub connectivity, not the AC's response or IR compatibility. The current CLI requires Tuya protocol **3.5**.
 
-If no devices are found, check hub power, the Mac's LAN, and guest-network/client isolation. If a configured hub is absent, setup stops rather than picking a different one. For a hub that does not broadcast, use the manual commands below with the LAN address from your router's DHCP leases. Smart Life's public IP is not the LAN address. A DHCP reservation helps keep the hub's address stable.
+If no devices are found, check hub power, the Mac's LAN, and guest-network/client isolation. If a configured hub is absent, setup stops rather than picking a different one. For a hub that does not broadcast, use the manual commands below with the LAN address from your router's DHCP leases. Smart Life's public IP is not the LAN address. If the configured hub's address later changes, everyday commands (`ac on`, `ac check`, …) find the same device ID on the LAN, retry once and save the new address. A DHCP reservation avoids that short search.
 
 If a hub was reset or re-paired, its local key may have changed. Setup does not repeatedly request login after an authentication failure: run `ac login` or `ac key` to refresh the key, then rerun `ac setup`. A malformed configuration is preserved; repair it or explicitly select the replacement hub by ID.
 

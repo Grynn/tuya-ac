@@ -54,8 +54,36 @@ def local_key(device_id):
 
 
 def connect(settings=None, key=None):
-    settings = config() if settings is None else settings
+    if settings is not None:
+        return open_session(settings, local_key(settings['device_id']) if key is None else key)
+    # Everyday commands: if the saved IP is stale (DHCP moved the hub), find the
+    # same device ID on the LAN, retry once, and save the new IP only on success.
+    settings = config()
     key = local_key(settings['device_id']) if key is None else key
+    try:
+        return open_session(settings, key)
+    except (RuntimeError, OSError):
+        pass
+    print(f"Hub not reachable at {settings['ip']}; searching the LAN for it...", file=sys.stderr, flush=True)
+    found = tinytuya.find_device(dev_id=settings['device_id']).get('ip')
+    if not found:
+        raise RuntimeError('LAN connection failed and the hub was not found by discovery; check its '
+                           'power and LAN access, or run ac setup')
+    rotated = (f'Hub is at {found} but session authentication failed; if it was re-paired its local '
+               'key changed: run ac login (or ac key)')
+    if found == settings['ip']:
+        raise RuntimeError(rotated)
+    moved = dict(settings, ip=found)
+    try:
+        dev = open_session(moved, key)
+    except (RuntimeError, OSError):
+        raise RuntimeError(rotated) from None
+    save_config(moved)
+    print(f"Hub moved {settings['ip']} -> {found}; updated {CONFIG}", file=sys.stderr, flush=True)
+    return dev
+
+
+def open_session(settings, key):
     dev = tinytuya.Device(settings['device_id'], settings['ip'], key,
                          version=3.5, connection_timeout=2, persist=True)
     try:
@@ -224,6 +252,21 @@ def setup(device_id=None, non_interactive=False):
           'Use ac --help for controls; ac check repeats this safe connectivity check.')
 
 
+def upgrade():
+    """Update in place: brew for a Cellar install, git pull + uv sync for a source checkout."""
+    if '/Cellar/' in str(ROOT):
+        # exec replaces this process, so brew can swap out the keg we were loaded from.
+        os.execvp('brew', ['brew', 'upgrade', 'grynn/tap/tuya-ac'])
+    if (ROOT / '.git').exists():
+        for cmd in (['git', '-C', str(ROOT), 'pull', '--ff-only'],
+                    ['uv', 'sync', '--frozen', '--project', str(ROOT)]):
+            print('+ ' + ' '.join(cmd), flush=True)
+            if subprocess.run(cmd).returncode:
+                raise RuntimeError(f'{cmd[0]} failed; {ROOT} was left as it is')
+        return
+    raise RuntimeError(f'Unknown install type at {ROOT}: reinstall with brew install grynn/tap/tuya-ac')
+
+
 def control(dev, command):
     payload = dev.generate_payload(tinytuya.CONTROL, {'201': json.dumps(command)})
     dev._send_receive_quick(payload, 1)
@@ -324,7 +367,7 @@ def send(name, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--version', action='version', version='%(prog)s 0.1.1')
+    parser.add_argument('--version', action='version', version='%(prog)s 0.1.2')
     sub = parser.add_subparsers(dest='action', required=True)
     for name in ('on', 'off'):
         sub.add_parser(name).add_argument('--dry-run', action='store_true')
@@ -339,6 +382,7 @@ def main():
     wizard.add_argument('--device-id', help='Select a physical IR hub explicitly (also for scripts)')
     wizard.add_argument('--non-interactive', action='store_true',
                         help='Never prompt or start login; fail if authorization or a choice is needed')
+    sub.add_parser('upgrade', help='Update this CLI (Homebrew install or git checkout)')
     sub.add_parser('login', help='Retrieve local keys with Smart Life QR login')
     sub.add_parser('key', help='Save an existing local key via a hidden prompt')
     sub.add_parser('check', help='Authenticate to the hub without sending IR')
@@ -357,6 +401,8 @@ def main():
         ipaddress.IPv4Address(args.ip)
         save_config({'device_id': args.device_id, 'ip': args.ip})
         print(f'Saved configuration to {CONFIG}')
+    elif args.action == 'upgrade':
+        upgrade()
     elif args.action == 'login':
         import setup_keys
         setup_keys.login(CONFIG_DIR)
